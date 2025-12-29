@@ -1,0 +1,68 @@
+/* --- Calendar Widget --- */
+.calendar-widget {
+    text-align: center;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+.calendar-widget .day {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+.calendar-widget .date {
+    font-size: 2.5em;
+    line-height: 1.2;
+    font-weight: bold;
+}
+
+/* --- Calendar Modal --- */
+.calendar-modal {
+    width: 100%;
+}
+
+.calendar-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    align-items: center;
+}
+.calendar-controls select, .calendar-controls button {
+    padding: 5px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+.calendar-modal table {
+    width: 100%;
+    text-align: center;
+    border-collapse: collapse;
+}
+.calendar-modal th {
+    padding-bottom: 10px;
+}
+.calendar-modal td {
+    padding: 8px 5px;
+}
+.calendar-modal .today {
+    background: #007bff;
+    color: #fff;
+    border-radius: 50%;
+}
+
+/* --- Dark Theme Overrides for Calendar --- */
+.dark-theme .calendar-controls select, 
+.dark-theme .calendar-controls button {
+    background-color: #4a4a4a;
+    color: #f5f5f5;
+    border-color: #616161;
+}
+.dark-theme .calendar-modal .today {
+    background: #0d6efd;
+}
+.dark-theme .calendar-widget .day,
+.dark-theme .calendar-widget .date {
+    color: white;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+}

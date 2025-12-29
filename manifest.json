@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "ImGlass Home Screen",
+  "version": "1.0",
+  "description": "ImGlass Home Screen for Chrome Extension by iMakeProject",
+  "chrome_url_overrides": {
+    "newtab": "index.html"
+  },
+  "permissions": ["sessions", "tabs", "storage", "bookmarks"],
+  "host_permissions": ["https://www.google.com/*", "https://www.bing.com/*"],
+  "icons": {
+    "128": "icon.png"
+  }
+}
