@@ -1,5 +1,6 @@
-// This module provides notifications from the notify.php file.
-(function() {
+var Launcher = Launcher || {};
+Launcher.Modules = Launcher.Modules || {};
+Launcher.Modules.NotificationMessages = (function() {
 
     /**
      * Fetches the system messages from notify.php.
@@ -10,29 +11,34 @@
             return callback(new Error('Launcher.request utility is not available.'), null);
         }
 
-        /*
-        Launcher.request('GET', 'data/notify.php', {}, function(error, data) {
-            if (error) {
-                callback(error, null);
-            } else {
-                callback(null, data);
-            }
+        chrome.notifications.getAll(function(notifications) {
+            console.log('Fetched notifications:', notifications);
+            const messages = Object.keys(notifications).map(id => ({
+                id: id,
+                title: notifications[id].title || 'Notification',
+                message: notifications[id].message || '',
+                read: false
+            }));
+            callback(null, messages);
         });
-        */
+        
     }
 
     /**
      * Registers this module as a notification provider once the DOM is ready.
      */
-    function register() {
-        if (Launcher && Launcher.NotificationBar) {
+    function init() {
+
+        if (Launcher && Launcher.Modules.NotificationBar) {
             // Correctly pass the ID and the function
-            Launcher.NotificationBar.registerProvider('system-messages', fetchSystemMessages);
+            Launcher.Modules.NotificationBar.registerMessageProvider('system-messages', fetchSystemMessages);
         } else {
             console.error('Launcher.NotificationBar module not found.');
         }
     }
 
-    document.addEventListener('DOMContentLoaded', register);
+    return {
+        init: init
+    };
 
 })();

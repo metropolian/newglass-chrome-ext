@@ -2,10 +2,13 @@ var Launcher = Launcher || {};
 
 // --- Board Module ---
 Launcher.Board = (function() {
+    const contextMenuId = 'contextMenu';
+
     // --- Module-level State ---
     let state = {
         widgets: [],
         pages: [],
+        actions: {},
         draggedWidget: null,
         dropPlaceholder: null,
         currentContextMenuWidget: null,
@@ -207,15 +210,19 @@ Launcher.Board = (function() {
     }
 
     function loadState() {
-        const savedLayout = localStorage.getItem('dashboard-layout');
+        const savedLayout = localStorage.getItem('dashboard-layout');        
         if (!savedLayout) return;
-        const layout = JSON.parse(savedLayout);
+        
+        const layout = JSON.parse(savedLayout);        
         const widgetMap = new Map(state.widgets.map(w => [w.id, w]));
         const maxPageId = Math.max(...layout.map(w => w.pageId), 0);
+        
         for (let i = 0; i <= maxPageId; i++) {
             if (!state.pages.find(p => p.id === i)) createPage(i);
         }
-        state.pages.forEach(p => p.gridState = createGridState());
+        state.pages.forEach(p => p.gridState = createGridState());                
+
+        
         layout.forEach(savedWidget => {
             const widget = widgetMap.get(savedWidget.id);
             if (widget) {
@@ -228,6 +235,7 @@ Launcher.Board = (function() {
                 if (targetPageInfo) updateGridStateForWidget(targetPageInfo, widget);
             }
         });
+
         Launcher.showToast('Layout loaded successfully!', 'success');
     }
 
@@ -341,6 +349,15 @@ Launcher.Board = (function() {
                 window.addEventListener('touchend', swipeEnd);
             }
         });
+
+        
+        Launcher.Inputs.registerHotkey('ArrowLeft', () => {
+            goToLeft();
+        });
+        Launcher.Inputs.registerHotkey('ArrowRight', () => {
+            goToRight();
+        });
+        
     }
 
 
@@ -356,7 +373,8 @@ Launcher.Board = (function() {
             if (providerIndex >= state.widgetProviders.length) {
                 loadState();
                 return;
-            }
+            } 
+
             const provider = state.widgetProviders[providerIndex];
             provider(function(error, widgetData) {
                 if (error) {
@@ -367,7 +385,6 @@ Launcher.Board = (function() {
                             const colSpan = widgetInfo.colSpan || 1;
                             const rowSpan = widgetInfo.rowSpan || 1;
 
-                            console.log('Placing widget:', widgetInfo.name, 'Size:', colSpan, 'x', rowSpan);
                             let slot = findNextAvailableSlot(currentPageInfo, colSpan, rowSpan);
                             if (!slot) {
                                 currentPageIndex++;
@@ -396,45 +413,75 @@ Launcher.Board = (function() {
         processNextProvider(0);
     }
 
+    function registerWidgetAction(actionId, actionFunction) {
+        if (typeof actionFunction !== 'function') {
+            console.error(`Action for "${actionId}" must be a function.`);
+            return;        
+        }
+        if (Array.isArray(state.actions[actionId])) {
+            state.actions[actionId].push(actionFunction);
+        } else {
+            state.actions[actionId] = [actionFunction];
+        }
+    }
+
+    function executeAction(actionId, widget) {
+        const actionFunction = state.actions[actionId];
+        if (actionFunction) {
+            actionFunction(widget);
+        }
+    }    
+
+    function unregisterWidgetAction(actionId, actionFunction) {
+        if (Array.isArray(state.actions[actionId])) {
+            state.actions[actionId] = state.actions[actionId].filter(fn => fn !== actionFunction);
+        }
+    }
+
+    function registerContextMenuAction(actionId, actionFunction) {
+        registerWidgetAction(actionId, actionFunction);
+    }
+
+    function unregisterContextMenuAction(actionId, actionFunction) {
+        unregisterWidgetAction(actionId, actionFunction);
+    }
+
+    function showContextMenu(x, y, widget) {        
+        Launcher.ContextMenu.show(contextMenuId, x, y, widget);
+        state.currentContextMenuWidget = widget;
+    }
+
+    function hideContextMenu() {
+        Launcher.ContextMenu.hide(contextMenuId);
+        state.currentContextMenuWidget = null;
+    };    
+
     function init() {
-        const contextMenuElement = document.getElementById('contextMenu');
-        const hideContextMenu = () => {
-            if (contextMenuElement.style.display === 'block') {
-                contextMenuElement.style.display = 'none';
-                state.currentContextMenuWidget = null;
-            }
-        };
-        window.showContextMenu = (x, y, widget) => {
-            contextMenuElement.style.top = `${y}px`;
-            contextMenuElement.style.left = `${x}px`;
-            contextMenuElement.style.display = 'block';
-            const launchItem = contextMenuElement.querySelector('[data-action="launch"]');
-            launchItem.style.display = (widget.type === 'app' && widget.target && widget.target !== '#') ? 'block' : 'none';
-        };
-        contextMenuElement.addEventListener('click', (e) => {
-            const action = e.target.dataset.action;            
-            if (action && state.currentContextMenuWidget) {                
-                if (action === 'launch') state.currentContextMenuWidget.launch();
-                else if (action === 'edit') Launcher.showMessage(`Editing "${state.currentContextMenuWidget.name}" is not implemented yet.`, 'Edit Widget');
-                else if (action === 'delete') {
-                    Launcher.showDialog(`Are you sure you want to delete "${state.currentContextMenuWidget.name}"?`, (confirmed) => {
-                        if (confirmed) {
-                            const widgetName = state.currentContextMenuWidget.name;
-                            state.currentContextMenuWidget.remove();
-                            Launcher.showToast(`"${widgetName}" was deleted.`, 'success');
-                        }
-                    });
-                }
-            }
-            hideContextMenu();
-        });
-        document.addEventListener('click', (e) => {
-            if (!contextMenuElement.contains(e.target)) hideContextMenu();
-        });
-        
+
         loadWidgets();
         initParallax();
         initNavigationListeners(); // Initialize the new navigation listeners
+    
+        Launcher.ContextMenu.registerMenuAction(contextMenuId, 'launch', (sender, widget) => {
+            widget.launch(true);
+        });
+
+        Launcher.ContextMenu.registerMenuAction(contextMenuId, 'edit', (sender, widget) => {
+            widget.edit();
+        });
+
+        Launcher.ContextMenu.registerMenuAction(contextMenuId, 'delete', (sender, widget) => {
+            Launcher.showDialog(`Are you sure you want to delete "${widget.name}"?`, (confirmed) => {
+                if (confirmed) {
+                    widget.remove();
+                    Launcher.showToast(`"${widget.name}" was deleted.`, 'success');
+                }
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            Launcher.Board.hideContextMenu();
+        });        
     }
 
     // --- Public API ---
@@ -442,6 +489,13 @@ Launcher.Board = (function() {
         state: state,
         init: init,
         registerWidgetProvider: registerWidgetProvider,
+        registerWidgetAction: registerWidgetAction,
+        showContextMenu: showContextMenu,
+        hideContextMenu: hideContextMenu,
+        registerContextMenuAction: registerContextMenuAction,
+        unregisterContextMenuAction: unregisterContextMenuAction,
+        executeAction: executeAction,
+
         createPage: createPage,
         createGridState: createGridState,
         updateGridStateForWidget: updateGridStateForWidget,
@@ -458,6 +512,10 @@ Launcher.Board = (function() {
         goToLeft: goToLeft,
         goToRight: goToRight
     };
+
+    
+
 })();
 
-document.addEventListener('DOMContentLoaded', Launcher.Board.init);
+Launcher.Modules = Launcher.Modules || {};
+Launcher.Modules.Board = Launcher.Board;

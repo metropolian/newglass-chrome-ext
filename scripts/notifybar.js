@@ -1,8 +1,10 @@
 var Launcher = Launcher || {};
-Launcher.NotificationBar = (function() {
+Launcher.Modules = Launcher.Modules || {};
+Launcher.Modules.NotificationBar = Launcher.NotificationBar = (function() {
     // --- Module-level Variables ---
     let notificationBar, notificationDrawer, notificationList, notificationBadge,
-        clockElement, searchInput, dashboardContainer, networkStatusIcon;
+        clockElement, searchInput, dashboardContainer, networkStatusIcon,
+        barLeft, barCenter, barRight;
 
     let allNotifications = [];
     let isDragging = false;
@@ -116,7 +118,7 @@ Launcher.NotificationBar = (function() {
     }
 
     // --- Public API ---
-    function registerProvider(id, providerFunction) {
+    function registerMessageProvider(id, providerFunction) {
         providerFunction(function(error, notifications) {
             if (error) {
                 console.error(`Error from notification provider "${id}":`, error);
@@ -128,14 +130,35 @@ Launcher.NotificationBar = (function() {
         });
     }
 
+    function registerTool(id, bar, toolbarFunction) {
+
+        const element = Launcher.newElement('span', 'bar-tool', text);
+        element.id = 'x' + id;
+
+        
+        
+        notificationBar.getElementById('barleft');
+
+        element.innerHTML = (typeof toolbarFunction == 'function') ? toolbarFunction() : toolbarFunction;
+
+
+        return element;
+    }
+
     function init() {
         notificationBar = document.getElementById('notification-bar');
         notificationDrawer = document.getElementById('notification-drawer');
         notificationList = document.getElementById('notification-list');
         notificationBadge = document.getElementById('notification-badge');
+        dashboardContainer = document.querySelector('.dashboard-container');
+
+        barLeft = document.getElement('bar-left');
+        barCenter = document.getElementById('bar-center');
+        barRight = document.getElementsById('bar-right');
+
+
         clockElement = document.getElementById('clock');
         searchInput = document.getElementById('global-search-input');
-        dashboardContainer = document.querySelector('.dashboard-container');
         networkStatusIcon = document.getElementById('network-status-icon');
 
         if (searchInput) {
@@ -174,13 +197,19 @@ Launcher.NotificationBar = (function() {
             );
         }
 
-        // Initialize and listen for network status changes
-        updateNetworkStatus();
-        window.addEventListener('online', updateNetworkStatus);
-        window.addEventListener('offline', updateNetworkStatus);
+        registerTool('network', 'right', () => {
+            // Initialize and listen for network status changes
+            updateNetworkStatus();
+            window.addEventListener('online', updateNetworkStatus);
+            window.addEventListener('offline', updateNetworkStatus);
 
-        setInterval(updateClock, 1000);
-        updateClock();
+        });
+
+        registerTool('clock', 'left', function() {
+            setInterval(updateClock, 1000);
+            updateClock();
+        } );
+
 
         notificationBar.addEventListener('mousedown', handleDragStart);
         document.addEventListener('mousemove', handleDragMove);
@@ -193,8 +222,8 @@ Launcher.NotificationBar = (function() {
 
     return {
         init: init,
-        registerProvider: registerProvider
+        registerTool: registerTool,
+        registerMessageProvider: registerMessageProvider
     };
 })();
 
-document.addEventListener('DOMContentLoaded', Launcher.NotificationBar.init);

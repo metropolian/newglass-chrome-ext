@@ -159,6 +159,8 @@
         let wallpapers = [];
         let currentIndex = 0;
 
+        Launcher.Desktop.init();
+
         getBackgroundUrls().then((bgUrl) => {
             wallpapers = Array.isArray(bgUrl) ? bgUrl : [bgUrl];
 
@@ -275,12 +277,18 @@
 
     // --- Initialization ---
     function init() {
-        if (Launcher && Launcher.Board) {
-            Launcher.Board.registerWidgetProvider(fetchAllWidgets);
-        } else {
-            console.error('Launcher.Board module not found for startup widgets.');
-        }
-        initWallpaperChanger();
+
+        Launcher.Board.registerWidgetProvider(fetchAllWidgets);
+
+        Launcher.startup((settings) => {
+            if (Launcher && Launcher.Board) {
+                // Load initial widgets after settings are loaded
+            } else {
+                console.error('Launcher.Board module not found for startup widgets.');
+            }
+            initWallpaperChanger();
+        });
+
     }
 
     document.addEventListener('DOMContentLoaded', init);

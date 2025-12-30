@@ -49,6 +49,7 @@ class Widget {
         
         this.updatePosition();
 
+        return widgetEl;
     }
     
     attach(pageElement) {
@@ -79,13 +80,17 @@ class Widget {
     }
 
     addEventListeners() {
+        const self = this;
         this.element.addEventListener('click', () => {
             Launcher.Board.state.currentContextMenuWidget = this; 
             if (this.element.classList.contains('dragging') || document.getElementById('contextMenu').style.display === 'block') {
                 return;
             }
+
+            //Launcher.Board.executeAction('launch', self);
+            
             if (this.type === 'app') {
-                this.launch();
+                this.launch(false);
             } else if (this.type === 'web') {
                 Launcher.showBrowser(this.target);
             } 
@@ -106,14 +111,13 @@ class Widget {
         });
 
         this.element.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            Launcher.Board.state.currentContextMenuWidget = this;
-            showContextMenu(e.clientX, e.clientY, this);
+            e.preventDefault();            
+            Launcher.Board.showContextMenu(e.clientX, e.clientY, this);
         });
     }
 
-    launch() {
-        Launcher.start(this.target);
+    launch(blank) {
+        Launcher.start(this.target, blank);
     }
 
     remove() {

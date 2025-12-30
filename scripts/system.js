@@ -1,25 +1,47 @@
-// Establish the global Launcher namespace
+/**
+ * system.js
+ * 
+ * This module provides core system functions for the Launcher application,
+ */
 var Launcher = Launcher || {};
-Launcher.Desktop = {}; // Namespace for desktop functions
+
 Launcher.settings = {}; // Cache for settings
+Launcher.Modules = {}; // Namespace for modules
+Launcher.Desktop = {}; // Namespace for desktop functions
+Launcher.Inputs = {}; // Namespace for input management
+Launcher.ContextMenu = {}; // Namespace for context menu management
 
 // --- Event Management System ---
-const _eventListeners = {};
-Launcher.on = function(eventName, callback) {
-    if (!_eventListeners[eventName]) _eventListeners[eventName] = [];
-    _eventListeners[eventName].push(callback);
+Launcher.events = {};
+Launcher.addEventListener = function(eventName, callback) {
+    console.log(`Event addListener ${eventName} `);
+    if (!Launcher.events[eventName]) Launcher.events[eventName] = [];
+    Launcher.events[eventName].push(callback);
 };
-Launcher.event = function(eventName, eventData) {
-    if (_eventListeners[eventName]) {
-        _eventListeners[eventName].forEach(callback => callback(eventData));
+
+Launcher.on = Launcher.addEventListener;
+
+Launcher.removeEventListener = function(eventName, callback) {
+    if (!Launcher.events[eventName]) return;
+    const index = Launcher.events[eventName].indexOf(callback);
+    if (index !== -1) {
+        Launcher.events[eventName].splice(index, 1);
     }
 };
 
-/**
- * Alias for Launcher.event.
- */
-Launcher.invoke = Launcher.event;
+Launcher.off = Launcher.removeEventListener;
 
+/**
+ * Triggers an event with the given name and data.    
+ */
+Launcher.trigger = function(eventName, eventData) {
+    console.log(`Event: ${eventName}`, eventData);
+    if (Launcher.events[eventName]) {
+        Launcher.events[eventName].forEach(callback => callback(eventData));
+    }
+};
+
+Launcher.invoke = Launcher.trigger;
 
 // --- Dynamic Asset Loading ---
 
@@ -53,13 +75,13 @@ Launcher.loadStyle = function(url) {
  */
 Launcher.saveSettings = function() {
     localStorage.setItem('launcher-settings', JSON.stringify(Launcher.settings));
-    Launcher.request('POST', 'data/settings.php', { data: Launcher.settings }, (err, result) => {
+    /*Launcher.request('POST', 'data/settings.php', { data: Launcher.settings }, (err, result) => {
         if (err) {
             Launcher.showToast('Could not save settings to server.', 'error');
         } else {
             Launcher.showToast('Settings saved.', 'success');
         }
-    });
+    });*/
 };
 
 /**
@@ -81,20 +103,6 @@ Launcher.loadSettings = function(callback) {
     if (typeof callback === 'function') {
         callback(Launcher.settings);
     }
-};
-
-/**
- * The main entry point for the application. Loads settings then starts the app.
- * @param {function} callback - The main application function to run after setup.
- */
-Launcher.startup = function(callback) {
-    Launcher.loadSettings((settings) => {
-
-        Launcher.Desktop.init(settings);
-        if (typeof callback === 'function') {
-            callback(settings);
-        }
-    });
 };
 
 // --- Elemental System Functions ---
@@ -147,6 +155,62 @@ Launcher.request = function(method, url, options, callback) {
     xhr.send(data ? JSON.stringify(data) : null);
 };
 
+// Input Functions
+Launcher.Inputs.hotkeys = {};
+
+Launcher.Inputs.init = function() {
+    console.log('Initializing input management...');
+
+    document.addEventListener('keydown', (e) => {
+        Launcher.trigger('keydown', e);
+    });
+
+    document.addEventListener('keyup', (e) => {
+        if (Launcher.Inputs.isCombinationPressed(keyCombination, e)) {
+            const callback = Launcher.Inputs.hotkeys[keyCombination];
+            if (callback(e))
+                return true;
+        }
+
+        Launcher.trigger('keyup', e);
+    }); 
+
+    document.addEventListener('mousedown', (e) => {
+        Launcher.trigger('mousedown', e);
+    });
+
+    document.addEventListener('mouseup', (e) => {
+        Launcher.trigger('mouseup', e);
+    });
+
+    document.addEventListener('click', (e) => {
+        Launcher.trigger('click', e);
+    });
+    
+};
+
+Launcher.Inputs.registerHotkey = function(keyCombination, callback) {
+    if (typeof callback !== 'function') {
+        console.error('registerHotkey callback must be a function.');
+        return;
+    }
+    Launcher.Inputs.hotkeys[keyCombination] = callback;        
+};
+
+Launcher.Inputs.isCombinationPressed = function(keyCombination, event) {
+    const keys = keyCombination.toLowerCase().split('+').map(k => k.trim());
+    const keyPressed = event.key.toLowerCase();
+    const ctrl = keys.includes('ctrl') ? event.ctrlKey : true;
+    const alt = keys.includes('alt') ? event.altKey : true;
+    const shift = keys.includes('shift') ? event.shiftKey : true;
+    const keyMatch = keys.includes(keyPressed);
+    return ctrl && alt && shift && keyMatch;
+};
+
+Launcher.Inputs.unregisterHotkey = function(keyCombination) {
+    delete Launcher.Inputs.hotkeys[keyCombination];
+};
+
 
 // GUI Functions    
 Launcher.Desktop.init = function() {
@@ -179,12 +243,13 @@ Launcher.showToast = function(message, type = 'info') {
     }, 3000);
 };
 
-Launcher.start = function(url) {
+Launcher.start = function(url, blank) {
     if (!url || url === '#') {
         Launcher.showToast('No URL to open.', 'error');
         return;
     }
-    window.open(url, '_blank');
+    window.open(url, blank ? '_blank' : '_self');
+    Launcher.trigger('launch', url);
 };
 
 function showModal(options) {
@@ -203,6 +268,8 @@ function showModal(options) {
     footerEl.innerHTML = options.footerHTML || '';
     overlay.classList.remove('hidden');
     setTimeout(() => overlay.classList.add('visible'), 10);
+    
+    Launcher.trigger('modalShown', options.title);
     return { overlay, contentEl, titleEl, messageEl, footerEl };
 }
 
@@ -214,6 +281,8 @@ function hideModal(overlay) {
         contentEl.style.width = '';
         contentEl.style.height = '';
         contentEl.style.maxWidth = '';
+        Launcher.trigger('modalHidden', contentEl);
+
     }, 500);
 }
 
@@ -301,6 +370,113 @@ Launcher.showContentModal = function(title, contentHTML) {
         footerHTML: '<button id="modal-ok" class="primary">Close</button>'
     });
     document.getElementById('modal-ok').onclick = () => hideModal(overlay);
+};
+
+
+Launcher.ContextMenu.init = function(settings) {
+    console.log('Initializing context menus...');
+    Launcher.ContextMenu.menus = {};
+    Launcher.ContextMenu.currentContextMenu = null;
+    Launcher.ContextMenu.currentContextMenuData = null;
+
+    const menus = document.querySelectorAll('.context-menu');
+    menus.forEach(menu => {
+        const menuitems = menu.querySelectorAll('.context-menu [data-action]');
+
+        Launcher.ContextMenu.registerMenu(menu.id);
+        menuitems.forEach(item => {
+            const action = item.dataset.action;
+            Launcher.ContextMenu.registerMenuItem(menu.id, action, item);
+        });
+
+        console.log(`Registered context menu: ${menu.id} with ${menuitems.length} items.`);
+    });
+
+    Launcher.trigger('ContextMenuInit', settings);
+};
+
+Launcher.ContextMenu.registerMenu = function(menuId) {
+    const contextMenuElement = document.getElementById(menuId);
+    if (!contextMenuElement) {
+        console.error(`ContextMenu.registerMenu ID "${menuId}" not found.`);
+        return;    
+    }
+    contextMenuElement.dataset.menuId = menuId;    
+    contextMenuElement.classList.add(`context-menu-${menuId}`);
+
+    /*const menu = Launcher.newElement('div', `context-menu context-menu-${menuId}`);
+    menu.dataset.menuId = menuId;
+    contextMenuElement.appendChild(menu); */
+    Launcher.ContextMenu.menus[menuId] = {};
+};
+
+Launcher.ContextMenu.registerMenuItem = function(menuId, action, element) {
+    if (element) {
+        element.addEventListener('click', () => {
+            Launcher.ContextMenu.executeAction(action, element);
+        });
+
+        Launcher.ContextMenu.menus[menuId][action] = element;
+        Launcher.ContextMenu.hide(menuId);
+    }
+};
+
+Launcher.ContextMenu.unregisterMenuItem = function(menuId, action) {
+    const menu = Launcher.ContextMenu.menus[menuId];
+    if (menu && menu[action]) {
+        menu[action].remove();        
+        delete menu[action];
+    }
+};
+
+Launcher.ContextMenu.registerMenuAction = function(menuId, actionId, actionFunction) {
+    const menu = Launcher.ContextMenu.menus[menuId];
+    if (menu) {
+        menu[actionId] = actionFunction;
+    }
+};
+
+Launcher.ContextMenu.executeAction = function(actionId, element, data) {
+    const menuId = Launcher.ContextMenu.currentContextMenu;
+
+    const menu = Launcher.ContextMenu.menus[menuId];
+    if (menu && menu[actionId] && typeof menu[actionId] === 'function') {
+        menu[actionId](element, data || Launcher.ContextMenu.currentContextMenuData);
+    }   
+    
+    Launcher.trigger('executeAction', { actionId, element, data});
+};
+
+Launcher.ContextMenu.show = function(menuId, x, y, data) {
+    const el = document.getElementById(menuId);
+    if (!el) { 
+        console.error(`ContextMenu.show ID "${menuId}" not found.`);
+        return;
+    }
+
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    el.style.display = 'block';
+    Launcher.ContextMenu.currentContextMenu = menuId;
+    Launcher.ContextMenu.currentContextMenuData = data;
+};
+
+Launcher.ContextMenu.hide = function(menuId) {
+    if (!menuId && Launcher.ContextMenu.currentContextMenu) {
+        menuId = Launcher.ContextMenu.currentContextMenu;
+    }
+
+    const el = document.getElementById(menuId);
+    if (!el) { 
+        console.error(`ContextMenu.hide ID "${menuId}" not found.`);
+        return;
+    }
+
+    if (el.style.display === 'block') {
+        el.style.display = 'none';
+        Launcher.ContextMenu.currentContextMenu = null;
+        Launcher.ContextMenu.currentContextMenuData = null;
+    } 
 };
 
 
@@ -392,5 +568,41 @@ Launcher.attachAutocomplete = function(inputEl, onInput, onSelect) {
         if (e.target !== inputEl) {
             closeList();
         }
+    });
+};
+
+
+
+
+/**
+ * The main entry point for the application. Loads settings then starts the app.
+ * @param {function} callback - The main application function to run after setup.
+ */
+Launcher.startup = function(callback) {
+    Launcher.trigger('startup');
+
+    Launcher.loadSettings((settings) => {
+        Launcher.Desktop.init(settings);
+        Launcher.ContextMenu.init(settings);
+
+        for (const moduleId in Launcher.Modules) {
+            const module = Launcher.Modules[moduleId];
+
+            try {
+                console.log(`Initializing module: ${moduleId}`);
+                if (typeof module.init === 'function') {
+                    module.init(settings);
+                    Launcher.trigger('moduleInitialized', { moduleId, module });
+                }
+            } catch (e) {
+                console.error(`Error initializing module: ${moduleId}`, e);
+            }
+        }
+
+        if (typeof callback === 'function') {
+            callback(settings);            
+        }
+
+        Launcher.trigger('initialized');
     });
 };

@@ -1,172 +1,18 @@
-class Modal {
-    constructor(element, options = {}) {
-        this.element = element;
-        this.options = Object.assign({
-            backdrop: true,
-            keyboard: true,
-            focus: true
-        }, options);
-        
-        this.isShown = false;
-        this.backdrop = null;
-        this.scrollbarWidth = 0;
-        
-        this._bindEvents();
-    }
-    
-    _bindEvents() {
-        // Keyboard events
-        if (this.options.keyboard) {
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && this.isShown) {
-                    this.hide();
-                }
-            });
-        }
-    }
-    
-    show() {
-        if (this.isShown) return;
-        
-        this.isShown = true;
-        
-        // Hide scrollbar and store width
-        this.scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-        document.body.style.overflow = 'hidden';
-        document.body.style.paddingRight = this.scrollbarWidth + 'px';
-        
-        // Show backdrop
-        if (this.options.backdrop) {
-            this._showBackdrop();
-        }
-        
-        // Show modal
-        this.element.style.display = 'block';
-        this.element.setAttribute('aria-modal', 'true');
-        this.element.setAttribute('role', 'dialog');
-        this.element.removeAttribute('aria-hidden');
-        
-        // Trigger show event
-        this._triggerEvent('show.bs.modal');
-        
-        // Add show class with slight delay for fade animation
-        setTimeout(() => {
-            this.element.classList.add('show');
-            
-            // Focus on modal
-            if (this.options.focus) {
-                this.element.focus();
-            }
-            
-            // Trigger shown event after transition
-            setTimeout(() => {
-                this._triggerEvent('shown.bs.modal');
-            }, 300);
-        }, 10);
-    }
-    
-    hide() {
-        if (!this.isShown) return;
-        
-        this.isShown = false;
-        
-        // Trigger hide event
-        this._triggerEvent('hide.bs.modal');
-        
-        // Remove show class for fade animation
-        this.element.classList.remove('show');
-        
-        // Hide backdrop
-        if (this.backdrop) {
-            this.backdrop.classList.remove('show');
-        }
-        
-        // Wait for transition to complete
-        setTimeout(() => {
-            this.element.style.display = 'none';
-            this.element.setAttribute('aria-hidden', 'true');
-            this.element.removeAttribute('aria-modal');
-            this.element.removeAttribute('role');
-            
-            // Remove backdrop
-            if (this.backdrop) {
-                this.backdrop.remove();
-                this.backdrop = null;
-            }
-            
-            // Restore scrollbar
-            document.body.style.overflow = '';
-            document.body.style.paddingRight = '';
-            
-            // Trigger hidden event
-            this._triggerEvent('hidden.bs.modal');
-        }, 300);
-    }
-    
-    _showBackdrop() {
-        this.backdrop = document.createElement('div');
-        this.backdrop.className = 'modal-backdrop fade';
-        document.body.appendChild(this.backdrop);
-        
-        // Add click handler to close on backdrop click
-        this.backdrop.addEventListener('click', () => {
-            if (this.options.backdrop === true) {
-                this.hide();
-            }
-        });
-        
-        // Trigger fade animation
-        setTimeout(() => {
-            this.backdrop.classList.add('show');
-        }, 10);
-    }
-    
-    _triggerEvent(eventName) {
-        const event = new CustomEvent(eventName, {
-            bubbles: true,
-            cancelable: true
-        });
-        this.element.dispatchEvent(event);
-    }
-    
-    dispose() {
-        this.hide();
-        this.element = null;
-        this.options = null;
-        this.backdrop = null;
-    }
-}
+/**
+ *  Dialogs for Auto Generated Input Fields
+ * 
+    input field scheme:
 
-// For compatibility with bootstrap.Modal syntax
-const bootstrap = {
-    Modal: Modal
-};
-
-
-const Dialogs = (function () {
-    // Auto-create modal if not exists
-    let modalEl = document.getElementById('dialogsModal');
-    if (!modalEl) {
-        modalEl = document.createElement('div');
-        modalEl.id = 'dialogsModal';
-        modalEl.className = 'modal fade';
-        modalEl.tabIndex = '-1';
-        modalEl.innerHTML = `
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="dialogsTitle">Title</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body" id="dialogsBody"></div>
-                    <div class="modal-footer" id="dialogsFooter"></div>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modalEl);
+    {
+        name: { type: 'text', label: 'Name', value: '', required: true },
+        age: { type: 'number', label: 'Age', value: 30, required: true },
+        email: { type: 'email', label: 'Email', value: '', required: true },
+        birth: { type: 'date', label: 'Birth Date', value: new Date(2000, 0, 1) },
+        meeting: { type: 'datetime', label: 'Meeting', value: new Date(), required: true }
     }
+ */
 
-    const modal = new bootstrap.Modal(modalEl);
+var Dialogs = (function () {
     let currentCallback = null;
     let currentResult = false;
 
@@ -174,74 +20,6 @@ const Dialogs = (function () {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
-    }
-
-    function show(title, bodyHtml, footerHtml, callback) {
-        document.getElementById('dialogsTitle').textContent = title || 'Dialog';
-        document.getElementById('dialogsBody').innerHTML = bodyHtml;
-        document.getElementById('dialogsFooter').innerHTML = footerHtml;
-
-        currentCallback = callback;
-        currentResult = false;
-
-        const okBtn = document.querySelector('#dialogsFooter .btn-primary');
-        const cancelBtn = document.querySelector('#dialogsFooter .btn-secondary');
-        const closeBtn = document.querySelector('#dialogsModal .btn-close');
-
-        const closeHandler = () => { modal.hide(); };
-        const okHandler = () => { currentResult = true; modal.hide(); };
-
-        if (okBtn) okBtn.onclick = okHandler;
-        if (cancelBtn) cancelBtn.onclick = closeHandler;
-        if (closeBtn) closeBtn.onclick = closeHandler;
-
-        const hiddenHandler = () => {
-            if (currentCallback) {
-                currentCallback(currentResult);
-            }
-            currentCallback = null;
-            modalEl.removeEventListener('hidden.bs.modal', hiddenHandler);
-        };
-        modalEl.addEventListener('hidden.bs.modal', hiddenHandler);
-
-        modal.show();
-    }
-
-    // -------------------------------------------------
-    // showMessage(message, title, options, callback)
-    // -------------------------------------------------
-    function showMessage(message, title, options, callback) {
-        if (typeof options === 'function') { callback = options; options = {}; }
-        options = options || {};
-        const btnText = options.okText || 'OK';
-
-        const body = `<p class="mb-0">${escapeHtml(message)}</p>`;
-        const footer = `<button type="button" class="btn btn-primary">${btnText}</button>`;
-
-        show(title || 'Message', body, footer, function () {
-            if (callback) callback();
-        });
-    }
-
-    // -------------------------------------------------
-    // confirmBox(message, title, options, callback)
-    //   callback(true) on Yes, callback(false) on No/Cancel
-    // -------------------------------------------------
-    function confirmBox(message, title, options, callback) {
-        if (typeof options === 'function') { callback = options; options = {}; }
-        options = options || {};
-        const yesText = options.yesText || 'Yes';
-        const noText = options.noText || 'No';
-
-        const body = `<p class="mb-0">${escapeHtml(message)}</p>`;
-        const footer = `
-            <button type="button" class="btn btn-secondary">${noText}</button>
-            <button type="button" class="btn btn-primary">${yesText}</button>
-        `;
-
-        show(title || 'Confirm', body, footer, function (result) {
-            callback(result); // true = Yes, false = No/Cancel
-        });
     }
 
     // -------------------------------------------------
@@ -372,6 +150,89 @@ const Dialogs = (function () {
         return `<div class="mb-3">${label}${input}</div>`;
     }
 
+    function createInputFields(inputs) {
+        let html = '';
+        for (const key in inputs) {
+            html += createField(key, inputs[key]);
+        }
+        return html;
+    }    
+
+    function validateInputFields(inputs) {
+        let firstInvalid = null;
+        for (const key in inputs) {
+            const el = document.getElementById(key);
+            const valid = isValid(inputs[key].type, el.value, inputs[key].required);
+            if (!valid) {
+                el.classList.add('is-invalid');
+                if (!firstInvalid) firstInvalid = el;
+            } else {
+                el.classList.remove('is-invalid');
+            }
+            if (['date', 'datetime', 'time'].includes(inputs[key].type)) {
+                applyMask(el, inputs[key].type);
+            }
+        }
+        if (firstInvalid) {
+            firstInvalid.focus();
+            return false;
+        }
+        return true;
+    }
+
+    function getInputValues(inputs) {
+        const results = {};
+        for (const key in inputs) {
+            const el = document.getElementById(key);
+            const val = el.value.trim();
+            const type = inputs[key].type;
+            let parsed = val;
+            if (type === 'number') parsed = val === '' ? null : parseInt(val);
+            else if (type === 'float') parsed = val === '' ? null : parseFloat(val);
+            else if (type === 'date') parsed = parseDate(val);
+            else if (type === 'time') parsed = parseTime(val);
+            else if (type === 'datetime') parsed = parseDateTime(val);
+            results[key] = parsed;
+        }
+        return results;
+    }
+
+
+    // Full multi-field dialog
+    function showModalDialog(title, message, inputs, callback) {
+        const body = (message ? `<p class="mb-3">${escapeHtml(message)}</p>` : '') +
+                createInputFields(inputs);
+
+        const footer = `
+            <button id="modal-ok" class="primary">OK</button>
+            <button id="modal-cancel">Cancel</button>
+        `;
+
+        const { overlay } = showModal({
+            title: title,
+            messageHTML: body,
+            footerHTML: footer
+        });
+
+        const close = (result) => {
+            hideModal(overlay);
+            if (typeof callback === 'function') callback(result);
+        };
+
+        const submit = (result) => {
+            if (!validateInputFields(inputs)) {
+                return false;
+            }
+            hideModal(overlay);
+
+            const results = getInputValues(inputs);
+            if (typeof callback === 'function') callback(results);
+        }
+
+        document.getElementById('modal-ok').onclick = () => submit(true);
+        document.getElementById('modal-cancel').onclick = () => close(false);                        
+    }
+
     // inputBox wrapper
     function inputBox(message, title, value, type, maxlength, required, callback) {
         const inputs = {
@@ -383,83 +244,10 @@ const Dialogs = (function () {
         showModalDialog(title, message, inputs, function (res) {
             callback(res ? res.field : null);
         });
-    }
-
-    // Full multi-field dialog
-    function showModalDialog(title, message, inputs, callback) {
-        let html = message ? `<p class="mb-3">${escapeHtml(message)}</p>` : '';
-        for (const key in inputs) {
-            html += createField(key, inputs[key]);
-        }
-
-        const footer = `
-            <button type="button" class="btn btn-secondary">Cancel</button>
-            <button type="button" class="btn btn-primary">OK</button>
-        `;
-
-        show(title, html, footer, function (ok) {
-            if (!ok) return callback(null);
-
-            let firstInvalid = null;
-            for (const key in inputs) {
-                const el = document.getElementById(key);
-                const valid = isValid(inputs[key].type, el.value, inputs[key].required);
-                if (!valid) {
-                    el.classList.add('is-invalid');
-                    if (!firstInvalid) firstInvalid = el;
-                } else {
-                    el.classList.remove('is-invalid');
-                }
-                if (['date', 'datetime', 'time'].includes(inputs[key].type)) {
-                    applyMask(el, inputs[key].type);
-                }
-            }
-            if (firstInvalid) {
-                firstInvalid.focus();
-                return;
-            }
-
-            const result = {};
-            for (const key in inputs) {
-                const el = document.getElementById(key);
-                const val = el.value.trim();
-                const type = inputs[key].type;
-                let parsed = val;
-                if (type === 'number') parsed = val === '' ? null : parseInt(val);
-                else if (type === 'float') parsed = val === '' ? null : parseFloat(val);
-                else if (type === 'date') parsed = parseDate(val);
-                else if (type === 'time') parsed = parseTime(val);
-                else if (type === 'datetime') parsed = parseDateTime(val);
-                result[key] = parsed;
-            }
-            callback(result);
-        });
-    }
+    }    
 
     // Public API
     return {
-        message: showMessage,
-        confirm: confirmBox,
-        inputBox: inputBox,
-        showModal: showModalDialog,
         showModalDialog: showModalDialog,
-
-        // Short aliases
-        alert: showMessage,
-        confirmBox: confirmBox
     };
 })();
-
-// Test multi-field
-function testMulti() {
-    const inputs = {
-        name: { type: 'text', label: 'Name', value: '', required: true },
-        age: { type: 'number', label: 'Age', value: 30, required: true },
-        email: { type: 'email', label: 'Email', value: '', required: true },
-        birth: { type: 'date', label: 'Birth Date', value: new Date(2000, 0, 1) },
-        meeting: { type: 'datetime', label: 'Meeting', value: new Date(), required: true }
-    };
-    Dialogs.showModalDialog('User Form', 'Fill all required fields', inputs, function (res) {
-        console.log('Form result:', res);
-    });
-}
