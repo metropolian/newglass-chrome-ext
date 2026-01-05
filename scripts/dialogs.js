@@ -11,8 +11,10 @@
         meeting: { type: 'datetime', label: 'Meeting', value: new Date(), required: true }
     }
  */
+var Launcher = Launcher || {};
+Launcher.Modules = Launcher.Modules || {};
+Launcher.Dialogs = (function() {
 
-var Dialogs = (function () {
     let currentCallback = null;
     let currentResult = false;
 
@@ -150,14 +152,6 @@ var Dialogs = (function () {
         return `<div class="mb-3">${label}${input}</div>`;
     }
 
-    function createInputFields(inputs) {
-        let html = '';
-        for (const key in inputs) {
-            html += createField(key, inputs[key]);
-        }
-        return html;
-    }    
-
     function validateInputFields(inputs) {
         let firstInvalid = null;
         for (const key in inputs) {
@@ -196,6 +190,18 @@ var Dialogs = (function () {
         }
         return results;
     }
+
+    function createInputFields(inputs) {
+        let html = '';
+        html += `<div class="form-horizontal">`;
+        for (const key in inputs) {
+            //html += `<div class="row">` + createField(key, inputs[key]) + `</div>`;
+            html += createField(key, inputs[key]);
+            
+        }
+        html += `</div>`;
+        return html;
+    }    
 
 
     // Full multi-field dialog

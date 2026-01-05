@@ -17,10 +17,6 @@
             let firstMatch = null;
 
             widgets.forEach(widget => {
-                if (!widget.name) {
-                    widget.element.classList.remove('highlight');
-                    return;
-                }
                 const isMatch = searchTerm.length > 0 && widget.name.toLowerCase().includes(searchTerm);
                 if (isMatch) {
                     widget.element.classList.add('highlight');
@@ -28,6 +24,7 @@
                 } else {
                     widget.element.classList.remove('highlight');
                 }
+                
             });
             return firstMatch;
         }
@@ -41,74 +38,7 @@
         });
     }
 
-    function handleCalendar(widgetEl) {
-        const dayEl = widgetEl.querySelector('.day');
-        const dateEl = widgetEl.querySelector('.date');
-        const now = new Date();
-        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        
-        dayEl.textContent = days[now.getDay()];
-        dateEl.textContent = now.getDate();
-        
-        widgetEl.addEventListener('click', function() {
-            // Dynamically load the calendar's CSS
-            Launcher.loadStyle('styles/calendar.css');
-
-            const today = new Date();
-            let currentYear = today.getFullYear();
-            let currentMonth = today.getMonth();
-
-            function generateCalendarHTML(year, month) {
-                const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
-                const currentDate = today.getDate();
-                let html = '<table class="calendar-modal"><thead><tr>';
-                ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].forEach(day => html += `<th>${day}</th>`);
-                html += '</tr></thead><tbody><tr>';
-                const firstDay = new Date(year, month, 1).getDay();
-                for (let i = 0; i < firstDay; i++) html += '<td></td>';
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
-                for (let i = 1; i <= daysInMonth; i++) {
-                    const dayOfWeek = new Date(year, month, i).getDay();
-                    if (dayOfWeek === 0 && i > 1) html += '</tr><tr>';
-                    const isToday = (isCurrentMonth && i === currentDate) ? 'class="today"' : '';
-                    html += `<td ${isToday}>${i}</td>`;
-                }
-                html += '</tr></tbody></table>';
-                return html;
-            }
-
-            let headerHTML = '<div class="calendar-controls"><select id="month-select">';
-            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-            monthNames.forEach((name, index) => {
-                headerHTML += `<option value="${index}" ${index === currentMonth ? 'selected' : ''}>${name}</option>`;
-            });
-            headerHTML += '</select><select id="year-select">';
-            for (let i = currentYear - 10; i <= currentYear + 10; i++) {
-                headerHTML += `<option value="${i}" ${i === currentYear ? 'selected' : ''}>${i}</option>`;
-            }
-            headerHTML += '</select><button id="today-btn">Today</button></div>';
-            
-            Launcher.showContentModal("Calendar", headerHTML + '<div id="calendar-table-container"></div>');
-
-            const monthSelect = document.getElementById('month-select');
-            const yearSelect = document.getElementById('year-select');
-            const todayBtn = document.getElementById('today-btn');
-            const tableContainer = document.getElementById('calendar-table-container');
-
-            function updateCalendar() {
-                tableContainer.innerHTML = generateCalendarHTML(parseInt(yearSelect.value, 10), parseInt(monthSelect.value, 10));
-            }
-
-            updateCalendar();
-            monthSelect.addEventListener('change', updateCalendar);
-            yearSelect.addEventListener('change', updateCalendar);
-            todayBtn.addEventListener('click', () => {
-                monthSelect.value = today.getMonth();
-                yearSelect.value = today.getFullYear();
-                updateCalendar();
-            });
-        });
-    }
+    
 
     function handleWeather(widgetEl) {
         const tempEl = widgetEl.querySelector('.temp');
@@ -251,7 +181,6 @@
     async function fetchAllWidgets(callback) {
         let allWidgets = [
             { "id": "google-search", "type": "custom", "colSpan": 3, "rowSpan": 1, "contentHTML": `<div class="search-widget"><svg class="google-icon" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M22.46 12.312c0-.81-.07-1.62-.205-2.406H12v4.56h5.84a5.012 5.012 0 0 1-2.18 3.312v2.938h3.78c2.21-2.031 3.48-5.156 3.48-8.406z"></path><path d="M12 22.5c3.24 0 5.955-1.08 7.94-2.906l-3.78-2.937c-1.08.72-2.46 1.156-4.16 1.156-3.18 0-5.88-2.156-6.84-5.062H1.26v3.03C3.18 20.312 7.23 22.5 12 22.5z"></path><path d="M5.16 13.562a7.033 7.033 0 0 1 0-4.124v-3.03H1.26a11.21 11.21 0 0 0 0 10.183l3.9-3.03z"></path><path d="M12 5.156c1.77 0 3.345.615 4.59 1.844l3.36-3.36C17.955 1.95 15.24 0 12 0 7.23 0 3.18 2.187 1.26 5.594l3.9 3.03c.96-2.906 3.66-5.062 6.84-5.062z"></path></svg><input type="search" class="search-input" placeholder="Search Apps..."></div>`, "onAttach": handleSearch },
-            { "id": "calendar-widget", "type": "custom", "colSpan": 1, "rowSpan": 1, "contentHTML": "<div class='calendar-widget'><div class='day'>Loading...</div><div class='date'>--</div></div>", "onAttach": handleCalendar },
             { "id": "weather-widget", "type": "custom", "colSpan": 1, "rowSpan": 1, "contentHTML": "<div class='weather-widget'><div class='temp'>--°C</div><div class='condition'>Loading...</div></div>", "onAttach": handleWeather }
         ];
 
@@ -278,11 +207,13 @@
     // --- Initialization ---
     function init() {
 
-        Launcher.Board.registerWidgetProvider(fetchAllWidgets);
+        Launcher.NotificationBar.init();
+        Launcher.Board.registerWidgetProvider(fetchAllWidgets);        
 
         Launcher.startup((settings) => {
             if (Launcher && Launcher.Board) {
                 // Load initial widgets after settings are loaded
+                Launcher.Board.init(settings);
             } else {
                 console.error('Launcher.Board module not found for startup widgets.');
             }

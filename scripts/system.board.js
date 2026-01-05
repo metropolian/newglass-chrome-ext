@@ -1,5 +1,5 @@
 var Launcher = Launcher || {};
-
+Launcher.Modules = Launcher.Modules || {};
 // --- Board Module ---
 Launcher.Board = (function() {
     const contextMenuId = 'contextMenu';
@@ -362,6 +362,35 @@ Launcher.Board = (function() {
 
 
     // --- Initialization ---
+    function registerWidget(currentPageIndex, widgetInfo) {
+        try {
+            const colSpan = widgetInfo.colSpan || 1;
+            const rowSpan = widgetInfo.rowSpan || 1;
+
+            let currentPageInfo = state.pages[currentPageIndex];
+
+            let slot = findNextAvailableSlot(currentPageInfo, colSpan, rowSpan);
+            if (!slot) {
+                currentPageIndex++;
+                currentPageInfo = createPage(currentPageIndex);
+                slot = findNextAvailableSlot(currentPageInfo, colSpan, rowSpan);
+            }
+            if (slot) {
+                const fullWidgetInfo = { ...widgetInfo, pageId: currentPageIndex, ...slot };
+                const widget = new Widget(fullWidgetInfo);
+                state.widgets.push(widget);
+                widget.attach(currentPageInfo.element);
+                updateGridStateForWidget(currentPageInfo, widget);
+                return fullWidgetInfo;
+            }             
+
+        } catch (e) {
+            console.error(e);
+            Launcher.showToast('Error processing widget data from a provider.', 'error');
+            
+        }
+    }
+
     function registerWidgetProvider(provider) {
         state.widgetProviders.push(provider);
     }
@@ -376,39 +405,25 @@ Launcher.Board = (function() {
             } 
 
             const provider = state.widgetProviders[providerIndex];
-            provider(function(error, widgetData) {
-                if (error) {
-                    Launcher.showToast('Could not load widget data from a provider.', 'error');
-                } else {
-                    try {
-                        (widgetData || []).forEach(widgetInfo => {
-                            const colSpan = widgetInfo.colSpan || 1;
-                            const rowSpan = widgetInfo.rowSpan || 1;
+            if (typeof provider == 'function') {
+                provider(function(error, results) {
+                    if (error || !results) {
+                        Launcher.showToast('Could not load widget data from a provider.', 'error');
+                    } else {
+                        const widgetData = Array.isArray(results) ? results : [ results ];
+                        widgetData.forEach(widgetInfo => {
 
-                            let slot = findNextAvailableSlot(currentPageInfo, colSpan, rowSpan);
-                            if (!slot) {
-                                currentPageIndex++;
-                                currentPageInfo = createPage(currentPageIndex);
-                                slot = findNextAvailableSlot(currentPageInfo, colSpan, rowSpan);
+                            let widget = registerWidget(currentPageIndex, widgetInfo);
+                            if (widget) {
+                                currentPageIndex = widget.pageId;
                             }
-                            if (slot) {
-                                const fullWidgetInfo = { ...widgetInfo, pageId: currentPageIndex, ...slot };
-                                const widget = new Widget(fullWidgetInfo);
-                                state.widgets.push(widget);
-                                widget.attach(currentPageInfo.element);
-                                updateGridStateForWidget(currentPageInfo, widget);
-                            }
+
                         });
                         processNextProvider(providerIndex + 1);
-
-                    } catch (e) {
-                        Launcher.showToast('Error processing widget data from a provider.', 'error');
-                        console.error(e);
-                        processNextProvider(providerIndex + 1);
+                        
                     }
-                    
-                }
-            });
+                });
+            }
         }
         processNextProvider(0);
     }
@@ -517,5 +532,3 @@ Launcher.Board = (function() {
 
 })();
 
-Launcher.Modules = Launcher.Modules || {};
-Launcher.Modules.Board = Launcher.Board;

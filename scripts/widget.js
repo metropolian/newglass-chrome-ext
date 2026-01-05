@@ -120,6 +120,10 @@ class Widget {
         Launcher.start(this.target, blank);
     }
 
+    edit() {
+        
+    }
+
     remove() {
         this.detach();
         Launcher.Board.state.widgets = Launcher.Board.state.widgets.filter(w => w.id !== this.id);

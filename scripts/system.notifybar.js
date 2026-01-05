@@ -1,35 +1,16 @@
 var Launcher = Launcher || {};
 Launcher.Modules = Launcher.Modules || {};
-Launcher.Modules.NotificationBar = Launcher.NotificationBar = (function() {
+Launcher.NotificationBar = (function() {
     // --- Module-level Variables ---
     let notificationBar, notificationDrawer, notificationList, notificationBadge,
-        clockElement, searchInput, dashboardContainer, networkStatusIcon,
-        barLeft, barCenter, barRight;
+        searchInput, dashboardContainer, networkStatusIcon;
+    let barLeft, barCenter, barRight;
 
     let allNotifications = [];
     let isDragging = false;
     let initialY = 0;
 
     // --- Core UI Functions ---
-    function updateClock() {
-        if (!clockElement) return;
-        const now = new Date();
-        const options = { hour: 'numeric', minute: '2-digit', hour12: false };
-        clockElement.textContent = now.toLocaleTimeString('en-US', options);
-    }
-
-    function updateNetworkStatus() {
-        if (!networkStatusIcon) return;
-        const onlineIcon = networkStatusIcon.querySelector('.icon-online');
-        const offlineIcon = networkStatusIcon.querySelector('.icon-offline');
-        if (navigator.onLine) {
-            onlineIcon.classList.remove('hidden');
-            offlineIcon.classList.add('hidden');
-        } else {
-            onlineIcon.classList.add('hidden');
-            offlineIcon.classList.remove('hidden');
-        }
-    }
 
     function renderNotifications() {
         if (!notificationList || !notificationBadge) return;
@@ -130,19 +111,32 @@ Launcher.Modules.NotificationBar = Launcher.NotificationBar = (function() {
         });
     }
 
-    function registerTool(id, bar, toolbarFunction) {
+    function registerTool(id, barType, text, toolbarFunction) {
+        const toolId = '$$' + id;
+        let element = document.getElementById(toolId);
+        if (element) return element;
 
-        const element = Launcher.newElement('span', 'bar-tool', text);
-        element.id = 'x' + id;
-
+        element = Launcher.newElement('span', 'bar-tool', '');
+        element.id = '$$' + id;
+        element.innerHTML = text;
         
-        
-        notificationBar.getElementById('barleft');
+        let bar = barRight;
+        if (barType == 'left' || barType == 'bar-left')
+            bar = barLeft;
+        else if (barType == 'center' || barType == 'bar-center')
+            bar = barCenter;
+        bar.appendChild(element);
 
-        element.innerHTML = (typeof toolbarFunction == 'function') ? toolbarFunction() : toolbarFunction;
-
-
+        if  (typeof toolbarFunction == 'function') 
+            toolbarFunction(element);
         return element;
+    }
+
+    function unregisterTool(id) {        
+        const toolId = '$$' + id;
+        let element = document.getElementById(toolId);
+        if (!element) return;
+        element.remove();
     }
 
     function init() {
@@ -152,63 +146,30 @@ Launcher.Modules.NotificationBar = Launcher.NotificationBar = (function() {
         notificationBadge = document.getElementById('notification-badge');
         dashboardContainer = document.querySelector('.dashboard-container');
 
-        barLeft = document.getElement('bar-left');
+        barLeft = document.getElementById('bar-left');
         barCenter = document.getElementById('bar-center');
-        barRight = document.getElementsById('bar-right');
+        barRight = document.getElementById('bar-right');
 
+        registerTool('network', 'right', '', (element) => {                
+            element.innerHTML = '<span class="icon-online" title="Online">🟢</span><span class="icon-offline hidden" title="Offline">🔴</span>';
 
-        clockElement = document.getElementById('clock');
-        searchInput = document.getElementById('global-search-input');
-        networkStatusIcon = document.getElementById('network-status-icon');
-
-        if (searchInput) {
-            // Attach the new autocomplete functionality
-            Launcher.attachAutocomplete(searchInput, 
-                // onInput: This function provides the suggestions
-                (term, showSuggestions) => {
-                    const searchTerm = term.toLowerCase();
-                    if (searchTerm.length === 0) {
-                        showSuggestions([]);
-                        // Clear highlights when search is empty
-                        Launcher.Board.state.widgets.forEach(widget => widget.element.classList.remove('highlight'));
-                        return;
-                    }
-                    const suggestions = Launcher.Board.state.widgets
-                        .filter(widget => widget.name && widget.name.toLowerCase().includes(searchTerm))
-                        .map(widget => widget.name);
-                    
-                    showSuggestions(suggestions);
-                    
-                    // Also highlight in real-time
-                    Launcher.Board.state.widgets.forEach(widget => {
-                         const isMatch = widget.name && widget.name.toLowerCase().includes(searchTerm);
-                         widget.element.classList.toggle('highlight', isMatch);
-                    });
-                },
-                // onSelect: This function runs when a user chooses an item
-                (selectedValue) => {
-                    const widget = Launcher.Board.state.widgets.find(w => w.name && w.name.toLowerCase() === selectedValue.toLowerCase());
-                    if (widget) {
-                        Launcher.Board.goTo(widget.pageId);
-                        searchInput.value = ''; // Clear search bar
-                        Launcher.Board.state.widgets.forEach(w => w.element.classList.remove('highlight'));
-                    }
-                }
-            );
-        }
-
-        registerTool('network', 'right', () => {
             // Initialize and listen for network status changes
-            updateNetworkStatus();
+            function updateNetworkStatus() {
+                if (!networkStatusIcon) return;
+                const onlineIcon = networkStatusIcon.querySelector('.icon-online');
+                const offlineIcon = networkStatusIcon.querySelector('.icon-offline');
+                if (navigator.onLine) {
+                    onlineIcon.classList.remove('hidden');
+                    offlineIcon.classList.add('hidden');
+                } else {
+                    onlineIcon.classList.add('hidden');
+                    offlineIcon.classList.remove('hidden');
+                }
+            }
             window.addEventListener('online', updateNetworkStatus);
             window.addEventListener('offline', updateNetworkStatus);
 
         });
-
-        registerTool('clock', 'left', function() {
-            setInterval(updateClock, 1000);
-            updateClock();
-        } );
 
 
         notificationBar.addEventListener('mousedown', handleDragStart);
@@ -223,6 +184,7 @@ Launcher.Modules.NotificationBar = Launcher.NotificationBar = (function() {
     return {
         init: init,
         registerTool: registerTool,
+        unregisterTool: unregisterTool,
         registerMessageProvider: registerMessageProvider
     };
 })();

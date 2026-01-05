@@ -5,7 +5,7 @@
  */
 var Launcher = Launcher || {};
 
-Launcher.settings = {}; // Cache for settings
+Launcher.Settings = {}; // Cache for settings
 Launcher.Modules = {}; // Namespace for modules
 Launcher.Desktop = {}; // Namespace for desktop functions
 Launcher.Inputs = {}; // Namespace for input management
@@ -73,37 +73,71 @@ Launcher.loadStyle = function(url) {
 /**
  * Saves the current settings to localStorage and the server.
  */
-Launcher.saveSettings = function() {
-    localStorage.setItem('launcher-settings', JSON.stringify(Launcher.settings));
-    /*Launcher.request('POST', 'data/settings.php', { data: Launcher.settings }, (err, result) => {
-        if (err) {
-            Launcher.showToast('Could not save settings to server.', 'error');
-        } else {
-            Launcher.showToast('Settings saved.', 'success');
-        }
-    });*/
+Launcher.Settings.changed = false;
+Launcher.Settings.data = {};
+
+Launcher.Settings.set = function(key, value) {
+    if (typeof key != 'string')
+        key = key.toString();
+    Launcher.Settings.data[key] = value;
+    Launcher.Settings.changed = true;
+}
+
+Launcher.Settings.get = function(key, def) {
+    if (typeof key != 'string')
+        key = key.toString();
+    return Launcher.Settings.data[key] || def;
+}
+
+Launcher.Settings.save = function() {    
+    const serialized = JSON.stringify(Launcher.Settings.data)
+    console.log('Save: ', serialized);
+    if (!Launcher.Settings.changed) return;
+    localStorage.setItem('launcher-settings', serialized);
+    Launcher.Settings.changed = false;
 };
 
 /**
  * Loads settings from localStorage and/or a server.
  * @param {function} callback - Function to call after settings are loaded.
  */
-Launcher.loadSettings = function(callback) {
+Launcher.Settings.load = function(callback) {
     // 1. Load from localStorage first for speed
-    const localSettings = localStorage.getItem('launcher-settings');
-    if (localSettings) {
+    let serialized = localStorage.getItem('launcher-settings');
+    let settings = null;
+    if (serialized) {
         try {
-            Launcher.settings = JSON.parse(localSettings);
+            settings = JSON.parse(localSettings);
+            Launcher.Settings.data = settings;
+            Launcher.Settings.changed = false;
         } catch (e) {
             console.error("Failed to parse local settings.", e);
-        }
+        }        
     }
 
     // 2. Final callback
     if (typeof callback === 'function') {
-        callback(Launcher.settings);
+        callback(settings);
     }
 };
+
+Launcher.Settings.init = function(callback) {
+    let autoSaved = false;
+    function autoSaveSettings() {
+        if (autoSaved) return;
+
+        Launcher.Settings.save();
+        autoSaved = true;
+    }
+
+    window.addEventListener('beforeunload', autoSaveSettings);
+    window.addEventListener('pagehide', autoSaveSettings);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') autoSaveSettings();
+    });
+    return Launcher.Settings.load(callback);
+}
+
 
 // --- Elemental System Functions ---
 function createElement(elementName, className, innerHTML, settings) {
@@ -166,10 +200,13 @@ Launcher.Inputs.init = function() {
     });
 
     document.addEventListener('keyup', (e) => {
-        if (Launcher.Inputs.isCombinationPressed(keyCombination, e)) {
-            const callback = Launcher.Inputs.hotkeys[keyCombination];
-            if (callback(e))
-                return true;
+
+        for(const keys in Launcher.Inputs.hotkeys) {
+            if (Launcher.Inputs.isCombinationPressed(keys, e)) {
+                const callback = Launcher.Inputs.hotkeys[keys];
+                if (callback(e))
+                    return true;
+            }
         }
 
         Launcher.trigger('keyup', e);
@@ -222,11 +259,12 @@ Launcher.Desktop.init = function() {
 
 Launcher.Desktop.change = function(url) {
     document.body.style.backgroundImage = `url('${url}')`;
-    localStorage.setItem('launcher-desktop-bg', url);
+
+    Launcher.Settings.set('launcher-desktop-bg', url);
 };
 
-Launcher.Desktop.getLastBackground = function() {
-    return localStorage.getItem('launcher-desktop-bg');
+Launcher.Desktop.getLastBackground = function() {    
+    return Launcher.Settings.get('launcher-desktop-bg');
 };
 
 
@@ -252,6 +290,11 @@ Launcher.start = function(url, blank) {
     Launcher.trigger('launch', url);
 };
 
+function handleModalHotkey(e) {
+    if (e.keyCode == 13)
+        hideModal();
+}
+
 function showModal(options) {
     const overlay = document.getElementById('modal-overlay');
     const contentEl = document.getElementById('modal-content');
@@ -261,19 +304,24 @@ function showModal(options) {
     contentEl.style.width = options.width || '';
     contentEl.style.height = options.height || '';
     contentEl.style.maxWidth = options.maxWidth || '';
-    contentEl.className = options.className || 'modal-content-dialog';
+    contentEl.className = options.className || 'modal-normal';
     titleEl.style.display = options.title ? 'block' : 'none';
     titleEl.textContent = options.title || '';
     messageEl.innerHTML = options.messageHTML || '';
-    footerEl.innerHTML = options.footerHTML || '';
+    footerEl.innerHTML = options.footerHTML || '';    
     overlay.classList.remove('hidden');
-    setTimeout(() => overlay.classList.add('visible'), 10);
-    
+    setTimeout(() => overlay.classList.add('visible'), 10);    
+        
+    Launcher.currentModal = overlay;
+    Launcher.addEventListener('keyup', handleModalHotkey);
     Launcher.trigger('modalShown', options.title);
     return { overlay, contentEl, titleEl, messageEl, footerEl };
 }
 
 function hideModal(overlay) {
+    if (!overlay)
+        overlay = Launcher.currentModal;
+    if (!overlay) return;
     overlay.classList.remove('visible');
     setTimeout(() => {
         overlay.classList.add('hidden');
@@ -281,10 +329,15 @@ function hideModal(overlay) {
         contentEl.style.width = '';
         contentEl.style.height = '';
         contentEl.style.maxWidth = '';
+        Launcher.removeEventListener('keyup', handleModalHotkey);
+        Launcher.currentModal = null;
         Launcher.trigger('modalHidden', contentEl);
 
     }, 500);
 }
+
+Launcher.showModal = showModal;
+Launcher.hideModal = hideModal;
 
 Launcher.showMessage = function(text, title, callback) {
     const { overlay } = showModal({
@@ -581,7 +634,8 @@ Launcher.attachAutocomplete = function(inputEl, onInput, onSelect) {
 Launcher.startup = function(callback) {
     Launcher.trigger('startup');
 
-    Launcher.loadSettings((settings) => {
+    Launcher.Settings.init((settings) => {
+        Launcher.Inputs.init(settings);
         Launcher.Desktop.init(settings);
         Launcher.ContextMenu.init(settings);
 

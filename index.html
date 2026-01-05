@@ -15,21 +15,11 @@
         <div id="bar-left" class="bar-left">
             <div class="bar-title">AppLauncher</div>
         </div>
-        <div id="bar-center" class="bar-center">
-            <div class="bar-search">
-                <input type="search" id="global-search-input" placeholder="Search Apps...">
-            </div>
+        <div id="bar-center" class="bar-center">            
         </div>
         <div id="bar-right" class="bar-right bar-icons">
             <div class="bar-icon">
                 <span id="notification-badge" class="bar-icon hidden"></span>
-                <!-- New Network Status Icon -->
-                <div id="network-status-icon" class="bar-icon">
-                    <span class="icon-online" title="Online">🟢</span>
-                    <span class="icon-offline hidden" title="Offline">🔴</span>
-                </div>
-                <span id="clock" class="bar-text">09:02 PM</span>
-                <span id="settings" class="bar-icon">⚙️</span>
             </div>
         </div>
     </div>
@@ -62,14 +52,17 @@
 
     <!-- Scripts -->
     <script src="scripts/system.js"></script>
+    <script src="scripts/system.board.js"></script>
+    <script src="scripts/system.notifybar.js"></script>
     <script src="scripts/widget.js"></script>
-    <script src="scripts/paste.js"></script>
-    <script src="scripts/board.js"></script>
     <script src="scripts/dialogs.js"></script>
-    <script src="scripts/notifybar.js"></script>
-    <script src="scripts/notifymsgs.js"></script>    
-    <script src="scripts/dialogs.js"></script>
-    <script src="scripts/test.js"></script>
+
+    <script src="scripts/module.notifymsgs.js"></script>    
+    <script src="scripts/module.paste.js"></script>
+    <script src="scripts/module.search.js"></script>
+    <script src="scripts/module.calendar.js"></script>
+    <script src="scripts/module.settings.js"></script>
+    <script src="scripts/module.test.js"></script>
     <script src="scripts/startup.js"></script>
 
 

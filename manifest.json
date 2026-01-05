@@ -6,7 +6,17 @@
   "chrome_url_overrides": {
     "newtab": "index.html"
   },
-  "permissions": ["sessions", "tabs", "storage", "bookmarks", "notifications", "system"],
+  "permissions": [
+    "sessions", 
+    "tabs", 
+    "storage", 
+    "bookmarks", 
+    "notifications", 
+    "system",
+    "system.cpu",
+    "system.memory",
+    "system.storage"
+  ],
   "host_permissions": ["https://www.google.com/*", "https://www.bing.com/*"],
   "icons": {
     "128": "icon.png"

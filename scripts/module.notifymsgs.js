@@ -29,9 +29,9 @@ Launcher.Modules.NotificationMessages = (function() {
      */
     function init() {
 
-        if (Launcher && Launcher.Modules.NotificationBar) {
+        if (Launcher && Launcher.NotificationBar) {
             // Correctly pass the ID and the function
-            Launcher.Modules.NotificationBar.registerMessageProvider('system-messages', fetchSystemMessages);
+            Launcher.NotificationBar.registerMessageProvider('system-messages', fetchSystemMessages);
         } else {
             console.error('Launcher.NotificationBar module not found.');
         }
